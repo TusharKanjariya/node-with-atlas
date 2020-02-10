@@ -1,0 +1,27 @@
+{
+  "name": "node-with-atlas",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TusharKanjariya/node-with-atlas.git"
+  },
+  "author": "Tushar Kanjariya",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/TusharKanjariya/node-with-atlas/issues"
+  },
+  "homepage": "https://github.com/TusharKanjariya/node-with-atlas#readme",
+  "dependencies": {
+    "body-parser": "^1.19.0",
+    "cookie-parser": "^1.4.4",
+    "cors": "^2.8.5",
+    "express": "^4.17.1",
+    "express-session": "^1.17.0",
+    "mongoose": "^5.8.11"
+  }
+}
