@@ -63,10 +63,18 @@ var studentModel = mongoose.model("users", userSchema);
 // Route APIs
 app.get("/", function(req, res, next) {
   res.setHeader("Access-Control-Allow-Origin", "*");
+  res.header(
+    "Access-Control-Allow-Headers",
+    "x-requested-with, x-requested-by"
+  );
   res.send("Hii");
 });
 app.post("/insert", (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
+  res.header(
+    "Access-Control-Allow-Headers",
+    "x-requested-with, x-requested-by"
+  );
   if (req.body.fname && req.body.lname) {
     let user = {
       fname: req.body.fname,
@@ -87,6 +95,10 @@ app.post("/insert", (req, res) => {
 
 app.post("/login", (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
+  res.header(
+    "Access-Control-Allow-Headers",
+    "x-requested-with, x-requested-by"
+  );
   sess = req.session;
   if (req.body.email && req.body.password) {
     let check = {
@@ -109,6 +121,10 @@ app.post("/login", (req, res) => {
 
 app.get("/data", isLogged, (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
+  res.header(
+    "Access-Control-Allow-Headers",
+    "x-requested-with, x-requested-by"
+  );
   studentModel.find((err, result) => {
     if (err) throw err;
     res.json(result);
@@ -117,6 +133,10 @@ app.get("/data", isLogged, (req, res) => {
 
 app.get("/logout", isLogged, (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
+  res.header(
+    "Access-Control-Allow-Headers",
+    "x-requested-with, x-requested-by"
+  );
   sess = "";
   res.end("Done");
 });
