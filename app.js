@@ -62,10 +62,11 @@ var studentModel = mongoose.model("users", userSchema);
 
 // Route APIs
 app.get("/", function(req, res, next) {
+  res.setHeader("Access-Control-Allow-Origin", "*");
   res.send("Hii");
 });
 app.post("/insert", (req, res) => {
-  res.set("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Origin", "*");
   if (req.body.fname && req.body.lname) {
     let user = {
       fname: req.body.fname,
@@ -85,6 +86,7 @@ app.post("/insert", (req, res) => {
 });
 
 app.post("/login", (req, res) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
   sess = req.session;
   if (req.body.email && req.body.password) {
     let check = {
@@ -106,6 +108,7 @@ app.post("/login", (req, res) => {
 });
 
 app.get("/data", isLogged, (req, res) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
   studentModel.find((err, result) => {
     if (err) throw err;
     res.json(result);
@@ -113,6 +116,7 @@ app.get("/data", isLogged, (req, res) => {
 });
 
 app.get("/logout", isLogged, (req, res) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
   sess = "";
   res.end("Done");
 });
