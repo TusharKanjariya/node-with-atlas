@@ -8,7 +8,7 @@ var ObjectId = require('mongodb').ObjectID;
 const multer = require('multer');
 var app = express();
 
-app.use(express.static('images/uploads'));
+app.use(express.static('images'));
 // Session Management and Configuration
 var sess;
 app.use(
@@ -35,6 +35,19 @@ var storage = multer.diskStorage({
   }
 });
 
+var profileStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, './images/profiles');
+  },
+  filename: (req, file, cb) => {
+    let ext = file.originalname.substring(
+      file.originalname.lastIndexOf('.'),
+      file.originalname.length
+    );
+    cb(null, file.fieldname + Date.now() + ext);
+  }
+});
+
 var upload = multer({
   storage: storage,
   fileFilter: function(req, file, cb) {
@@ -49,7 +62,24 @@ var upload = multer({
     }
   }
 });
+
+var profileUpload = multer({
+  storage: profileStorage,
+  fileFilter: function(req, file, cb) {
+    if (
+      file.mimetype == 'image/png' ||
+      file.mimetype == 'image/jpg' ||
+      file.mimetype == 'image/jpeg'
+    ) {
+      cb(null, true);
+    } else {
+      return cb(new Error('Supported Files are JPG,PNG and JPEG Formats.'));
+    }
+  }
+});
 var postImage = upload.single('image');
+var profileImage = profileUpload.single('profile');
+
 if (app.get('env') === 'production') {
   app.set('trust proxy', true); // trust first proxy
 }
@@ -85,16 +115,20 @@ var userSchema = new Schema({
   lname: String,
   email: String,
   password: String,
-  passion: String
+  passion: String,
+  followers: [{ type: ObjectId, ref: 'users' }],
+  following: [{ type: ObjectId, ref: 'users' }],
+  image: String
 });
 var postSchema = new Schema({
-  Userid: String,
+  Userid: ObjectId,
   title: String,
   description: String,
   tags: String,
   category: String,
   likes: [{ type: ObjectId, ref: 'users' }],
-  image: String
+  image: String,
+  date: Date
 });
 
 // Creating a Schema Model used for Manipulate Data
@@ -112,27 +146,39 @@ app.get('/', function(req, res, next) {
 });
 app.post('/signup', (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.header(
-    'Access-Control-Allow-Headers',
-    'x-requested-with, x-requested-by'
-  );
-  if (req.body.fname && req.body.lname) {
-    let user = {
-      fname: req.body.fname,
-      lname: req.body.lname,
-      email: req.body.email,
-      password: req.body.password,
-      passion: req.body.passion
-    };
-    let sendData = new studentModel(user);
-    sendData.save(err => {
-      if (err) res.send(err);
-      res.send({ status: true });
-      console.log('Done');
-    });
-  } else {
-    res.send("Error : Can't Send Data");
-  }
+  let imgName = '';
+  profileImage(req, res, function(err) {
+    if (err instanceof multer.MulterError) {
+      console.log('first', err);
+      res.send(err);
+    } else if (err) {
+      console.log(err);
+      res.send(err);
+    } else {
+      console.log('done');
+      imgName = req.file.filename;
+    }
+    if (req.body.fname && req.body.lname) {
+      let user = {
+        fname: req.body.fname,
+        lname: req.body.lname,
+        email: req.body.email,
+        password: req.body.password,
+        passion: req.body.passion,
+        followers: [],
+        following: [],
+        image: imgName
+      };
+      let sendData = new studentModel(user);
+      sendData.save(err => {
+        if (err) res.send(err);
+        res.send({ status: true });
+        console.log('Done');
+      });
+    } else {
+      res.send("Error : Can't Send Data");
+    }
+  });
 });
 
 app.post('/login', (req, res) => {
@@ -166,55 +212,37 @@ app.get('/data', isLogged, (req, res) => {
   });
 });
 
-function Postupload(req, res) {
-  postImage(req, res, function(err) {
-    if (err instanceof multer.MulterError) {
-      console.log(err);
-      res.send(err);
-    } else if (err) {
-      console.log(err);
-      res.send(err);
-    } else {
-      imgName = req.file.filename;
-    }
-  });
-}
-
 app.post('/postUpload', (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   let imgName = '';
   postImage(req, res, function(err) {
-    console.log(req.bodyParser);
     if (err instanceof multer.MulterError) {
       console.log('first', err);
-      // res.send(err);
+      res.send(err);
     } else if (err) {
       console.log(err);
-      // res.send(err);
+      res.send(err);
     } else {
       console.log('done');
-
       imgName = req.file.filename;
     }
-    console.log(req.file);
-
-    console.log(req.body);
-
+    let currentDate = new Date();
     if (req.body.userId && req.body.title) {
       let check = {
-        userId: req.body.userId,
+        Userid: mongoose.Types.ObjectId(req.body.userId),
         title: req.body.title,
         description: req.body.desc,
         tags: req.body.tags,
         category: req.body.category,
         likes: [],
-        image: imgName
+        image: imgName,
+        date: currentDate
       };
       let postData = new postModel(check);
       postData.save(err => {
         if (err) {
           console.log(err);
-          // res.send(err);
+          res.send(err);
         }
         res.send({ status: true });
       });
@@ -248,10 +276,41 @@ app.post('/like', (req, res) => {
 });
 
 app.get('/singlePost/:id', (req, res) => {
-  postModel.findById(req.params.id, (err, result) => {
-    if (err) throw err;
-    res.send(result);
-  });
+  postModel
+    .aggregate([
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'Userid',
+          foreignField: '_id',
+          as: 'userData'
+        }
+      }
+    ])
+    .exec((err, result) => {
+      if (err) throw err;
+      res.send(result);
+    });
+});
+
+app.get('/profile/:id', (req, res) => {
+  let id = req.params.id;
+  studentModel
+    .aggregate([
+      { $match: { _id: mongoose.Types.ObjectId(id) } },
+      {
+        $lookup: {
+          from: 'posts',
+          localField: '_id',
+          foreignField: 'Userid',
+          as: 'userPosts'
+        }
+      }
+    ])
+    .exec((err, result) => {
+      if (err) throw err;
+      res.send(result);
+    });
 });
 
 app.get('/logout', isLogged, (req, res) => {
