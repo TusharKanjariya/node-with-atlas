@@ -3,7 +3,7 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
 const session = require('express-session');
-var cookieParser = require('cookie-parser');
+const fs = require('fs');
 var ObjectId = require('mongodb').ObjectID;
 const multer = require('multer');
 var app = express();
@@ -110,16 +110,7 @@ function isLogged(req, res, next) {
 
 // Creating a Schema Instance and Define Schema Structure
 var Schema = mongoose.Schema;
-var userSchema = new Schema({
-  fname: String,
-  lname: String,
-  email: String,
-  password: String,
-  passion: String,
-  followers: [{ type: ObjectId, ref: 'users' }],
-  following: [{ type: ObjectId, ref: 'users' }],
-  image: String
-});
+
 var postSchema = new Schema({
   Userid: ObjectId,
   title: String,
@@ -132,9 +123,17 @@ var postSchema = new Schema({
 });
 
 // Creating a Schema Model used for Manipulate Data
-var studentModel = mongoose.model('users', userSchema);
+var studentModel = require('./UserModel');
 var postModel = mongoose.model('posts', postSchema);
 
+notificationRouter = require('./notification');
+app.use('/notification', notificationRouter);
+
+teamsRouter = require('./teams');
+app.use('/teams', teamsRouter);
+
+commentRouter = require('./comment');
+app.use('/comment', commentRouter);
 // Route APIs
 app.get('/', function(req, res, next) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -278,6 +277,7 @@ app.post('/like', (req, res) => {
 app.get('/singlePost/:id', (req, res) => {
   postModel
     .aggregate([
+      { $match: { _id: ObjectId(req.params.id) } },
       {
         $lookup: {
           from: 'users',
@@ -313,6 +313,46 @@ app.get('/profile/:id', (req, res) => {
     });
 });
 
+app.post('/follow', (req, res) => {
+  studentModel.findById(req.body.id, (error, result) => {
+    if (result.followers.length >= 0) {
+      let follow = result.followers.filter(
+        val => val.toString() === req.body.uid
+      );
+      if (follow.length === 0) {
+        studentModel
+          .findByIdAndUpdate(req.body.id, {
+            $push: {
+              followers: req.body.uid
+            }
+          })
+          .then(val => {
+            res.end();
+          });
+        res.end();
+      }
+    }
+  });
+});
+
+app.post('/unfollow', (req, res) => {
+  console.log(req.body.id, req.body.uid);
+
+  studentModel.findByIdAndUpdate(
+    req.body.id,
+    {
+      $pull: {
+        followers: { $in: [ObjectId(req.body.uid)] }
+      }
+    },
+    { multi: true },
+    (err, doc) => {
+      if (err) throw err;
+    }
+  );
+  res.send('Done');
+});
+
 app.get('/logout', isLogged, (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.header(
@@ -320,6 +360,48 @@ app.get('/logout', isLogged, (req, res) => {
     'x-requested-with, x-requested-by'
   );
   sess = '';
+  res.end();
+});
+
+app.get('/trash', (req, res) => {
+  var available = [];
+  postModel.find({}, (err, res) => {
+    res.map(val => {
+      available.push(val.image);
+    });
+    let data = fs.readdirSync(__dirname + '/images/uploads/').filter(files => {
+      return !available.includes(files);
+    });
+    data.forEach(d => {
+      fs.unlink(__dirname + '/images/uploads/' + d, err => {
+        if (err) {
+          console.error(err);
+          return;
+        }
+      });
+    });
+    available = [];
+  });
+
+  studentModel.find({}, (err, doc) => {
+    doc.map(val => {
+      available.push(val.image);
+    });
+    let data = fs.readdirSync(__dirname + '/images/profiles/').filter(files => {
+      return !available.includes(files);
+    });
+    data.forEach(d => {
+      if (d.includes('profile') === true) {
+        fs.unlink(__dirname + '/images/uploads/' + d, err => {
+          if (err) {
+            console.error(err);
+            return;
+          }
+        });
+      }
+    });
+    available = [];
+  });
   res.end('Done');
 });
 
