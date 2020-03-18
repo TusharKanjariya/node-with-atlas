@@ -99,32 +99,9 @@ mongoose.connect(
   { useNewUrlParser: true, useUnifiedTopology: true }
 );
 
-// Check User is Logged in or Not
-function isLogged(req, res, next) {
-  if (sess) {
-    next();
-  } else {
-    next();
-  }
-}
-
-// Creating a Schema Instance and Define Schema Structure
-var Schema = mongoose.Schema;
-
-var postSchema = new Schema({
-  Userid: ObjectId,
-  title: String,
-  description: String,
-  tags: String,
-  category: String,
-  likes: [{ type: ObjectId, ref: 'users' }],
-  image: String,
-  date: Date
-});
-
 // Creating a Schema Model used for Manipulate Data
 var studentModel = require('./UserModel');
-var postModel = mongoose.model('posts', postSchema);
+var postModel = require('./PostModel');
 
 notificationRouter = require('./notification');
 app.use('/notification', notificationRouter);
@@ -199,7 +176,7 @@ app.post('/login', (req, res) => {
   }
 });
 
-app.get('/data', isLogged, (req, res) => {
+app.get('/data', (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.header(
     'Access-Control-Allow-Headers',
@@ -226,17 +203,32 @@ app.post('/postUpload', (req, res) => {
       imgName = req.file.filename;
     }
     let currentDate = new Date();
+    let check;
     if (req.body.userId && req.body.title) {
-      let check = {
-        Userid: mongoose.Types.ObjectId(req.body.userId),
-        title: req.body.title,
-        description: req.body.desc,
-        tags: req.body.tags,
-        category: req.body.category,
-        likes: [],
-        image: imgName,
-        date: currentDate
-      };
+      if (req.body.teamid) {
+        check = {
+          Userid: mongoose.Types.ObjectId(req.body.userId),
+          title: req.body.title,
+          description: req.body.desc,
+          tags: req.body.tags,
+          category: req.body.category,
+          likes: [],
+          teamid: req.body.teamid,
+          image: imgName,
+          date: currentDate
+        };
+      } else {
+        check = {
+          Userid: mongoose.Types.ObjectId(req.body.userId),
+          title: req.body.title,
+          description: req.body.desc,
+          tags: req.body.tags,
+          category: req.body.category,
+          likes: [],
+          image: imgName,
+          date: currentDate
+        };
+      }
       let postData = new postModel(check);
       postData.save(err => {
         if (err) {
@@ -353,7 +345,7 @@ app.post('/unfollow', (req, res) => {
   res.send('Done');
 });
 
-app.get('/logout', isLogged, (req, res) => {
+app.get('/logout', (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.header(
     'Access-Control-Allow-Headers',

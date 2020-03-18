@@ -51,6 +51,7 @@ var teamsSchema = mongoose.Schema({
 
 var teams = mongoose.model('teams', teamsSchema);
 var users = require('./UserModel');
+var posts = require('./PostModel');
 var notification = require('./NotificationModel');
 
 teamsRoute.post('/create', (req, res) => {
@@ -175,6 +176,57 @@ teamsRoute.post('/rejectInvite', (req, res) => {
     })
     .then(val => {});
   res.send({ ok: 1 });
+});
+
+teamsRoute.get('/myteams/:uid', (req, res) => {
+  teams
+    .aggregate([
+      {
+        $match: {
+          members: ObjectId(req.params.uid)
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'members',
+          foreignField: '_id',
+          as: 'teamMembers'
+        }
+      }
+    ])
+    .then(val => {
+      res.send(val);
+    });
+});
+
+teamsRoute.get('/team/:id', (req, res) => {
+  teams
+    .aggregate([
+      {
+        $match: {
+          _id: ObjectId(req.params.id)
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'members',
+          foreignField: '_id',
+          as: 'teamMembers'
+        }
+      }
+    ])
+    .then(val => {
+      res.send(val);
+    });
+});
+
+teamsRoute.get('/getPosts/:teamID', (req, res) => {
+  posts.find({ teamid: ObjectId(req.params.teamID) }, (err, doc) => {
+    if (err) throw err;
+    res.send(doc);
+  });
 });
 
 module.exports = teamsRoute;
