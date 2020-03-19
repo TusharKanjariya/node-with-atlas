@@ -355,6 +355,63 @@ app.get('/logout', (req, res) => {
   res.end();
 });
 
+app.delete('/deletePost/:id', (req, res) => {
+  postModel
+    .findByIdAndDelete(req.params.id)
+    .then(val => {
+      res.send(val);
+    })
+    .catch(err => {
+      throw err;
+    });
+});
+
+app.post('/editPost', (req, res) => {
+  console.log(req.destroy.upload);
+
+  if (req.body.upload) {
+    postModel
+      .findByIdAndUpdate(req.body.pid, {
+        title: req.body.title,
+        description: req.body.description,
+        category: req.body.category
+      })
+      .then(val => {
+        res.send(val);
+      })
+      .catch(err => {
+        throw err;
+      });
+  } else {
+    let imgName = '';
+    postImage(req, res, function(err) {
+      if (err instanceof multer.MulterError) {
+        console.log('first', err);
+        res.send(err);
+      } else if (err) {
+        console.log(err);
+        res.send(err);
+      } else {
+        console.log('done');
+        imgName = req.file.filename;
+      }
+      postModel
+        .findByIdAndUpdate(req.body.pid, {
+          title: req.body.title,
+          description: req.body.description,
+          category: req.body.category,
+          image: imgName
+        })
+        .then(val => {
+          res.send(val);
+        })
+        .catch(err => {
+          throw err;
+        });
+    });
+  }
+});
+
 app.get('/trash', (req, res) => {
   var available = [];
   postModel.find({}, (err, res) => {

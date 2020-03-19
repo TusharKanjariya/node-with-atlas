@@ -229,4 +229,99 @@ teamsRoute.get('/getPosts/:teamID', (req, res) => {
   });
 });
 
+teamsRoute.post('/addMembers', (req, res) => {
+  teams
+    .findOneAndUpdate(
+      { _id: ObjectId(req.body.tid) },
+      {
+        $push: { requestedMembers: req.body.users }
+      },
+      { new: true }
+    )
+    .then(val => {
+      let docsInsert = [];
+      req.body.users.map(v => {
+        let it = {
+          uid: v,
+          teamid: ObjectId(val._id),
+          message: `You are added in Team ${val.name} by ${req.body.username}`,
+          read: false,
+          isTeamInvite: true
+        };
+        docsInsert.push(it);
+      });
+      notification.insertMany(docsInsert, (err, doc) => {
+        if (err) throw err;
+      });
+      res.send({ val, created: true });
+      console.log('done');
+    })
+    .catch(err => {
+      throw err;
+    });
+});
+
+teamsRoute.post('/teamSettings', (req, res) => {
+  let imgName = '';
+  console.log(req.body.fileupload);
+
+  if (req.body.fileupload) {
+    if (req.body.teamname) {
+      let data = {
+        name: req.body.teamname
+      };
+      teams
+        .findOneAndUpdate({ _id: ObjectId(req.body.teamID) }, data)
+        .then(val => {
+          res.send(val);
+        })
+        .catch(err => {
+          throw err;
+        });
+    }
+  } else {
+    teamProfileImage(req, res, function(err) {
+      if (err instanceof multer.MulterError) {
+        console.log('first', err);
+      } else if (err) {
+        console.log(err);
+      } else {
+        imgName = req.file.filename;
+      }
+      if (req.body.teamname) {
+        let data = {
+          name: req.body.teamname,
+          image: imgName
+        };
+        teams
+          .findOneAndUpdate({ _id: ObjectId(req.body.teamID) }, data)
+          .then(val => {
+            res.send(val);
+          })
+          .catch(err => {
+            throw err;
+          });
+      }
+    });
+  }
+});
+
+teamsRoute.post('/deleteMember', (req, res) => {
+  teams
+    .findOneAndUpdate(
+      { _id: ObjectId(req.body.teamid) },
+      {
+        $pull: {
+          members: { $in: [ObjectId(req.body.uid)] }
+        }
+      }
+    )
+    .then(val => {
+      res.send(val);
+    })
+    .catch(err => {
+      console.log(err);
+    });
+});
+
 module.exports = teamsRoute;
